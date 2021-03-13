@@ -68,30 +68,33 @@ def format_input(file_path):
     formatted_lines = []
     address_locations = {}
     counter = 0
-    for line in file_input:
-        line = line.strip()
-        if len(line) == 0:
-            # if blank line skip
-            pass
-        elif line.startswith('#'):
-            # if a comment line skip
-            pass
-        else:
-            line_space_split = line.split(' ')
-            line_colon_split = line.split(':')
-            if len(line_space_split) == 1:
-                # e.g. LOOP: add branch name + address to a dict
-                name = line.split(':')[0]
-                address_locations.update({name: '{:04X}'.format(counter*4)})
-            elif len(line_colon_split) > 1:
-                # e.g LOOP: slt $t0, $t1, $t2 add branch name + address to dict
-                name = line_colon_split[0]
-                address_locations.update({name: '{:04X}'.format(counter*4)})
-                formatted_lines.append(line_colon_split[1].strip().split('#')[0].strip('\t').strip())
-                counter += 1
+    try:
+        for line in file_input:
+            line = line.strip()
+            if len(line) == 0:
+                # if blank line skip
+                pass
+            elif line.startswith('#'):
+                # if a comment line skip
+                pass
             else:
-                formatted_lines.append(line.split('#')[0].strip('\t').strip())
-                counter += 1
+                line_space_split = line.split(' ')
+                line_colon_split = line.split(':')
+                if len(line_space_split) == 1:
+                    # e.g. LOOP: add branch name + address to a dict
+                    name = line.split(':')[0]
+                    address_locations.update({name: '{:04X}'.format(counter*4)})
+                elif len(line_colon_split) > 1:
+                    # e.g LOOP: slt $t0, $t1, $t2 add branch name + address to dict
+                    name = line_colon_split[0]
+                    address_locations.update({name: '{:04X}'.format(counter*4)})
+                    formatted_lines.append(line_colon_split[1].strip().split('#')[0].strip('\t').strip())
+                    counter += 1
+                else:
+                    formatted_lines.append(line.split('#')[0].strip('\t').strip())
+                    counter += 1
+    except:
+        print(f"Error with line : {line} : Please check example format")
     return formatted_lines, address_locations
 
 def calculate_branch_address(target_address, current_address):
@@ -127,97 +130,100 @@ def assemble(mips_input, address_locations, file_output):
     """
     machine_code = []
     counter = 0
-    for line in mips_input:
-        op = line.split(',')
-        command_name = op[0].split(' ')[0].strip()
-        command = OP_CODE_TABLE[command_name]
-        opcode = command['op']
-        if command['type'] == 'I':
-            if command_name == 'beq' or command_name == 'bne':
-                # has the form OP rs, rt, IMM
-                try:
-                    # Constant jumps e.g. beq $t0, $t1, 3 # jump 3 instructions
-                    immediate = int(op[2])
-                    immediate = '{:016b}'.format(immediate)
-                except:
-                    # Not a constant jump e.g. beq $t0, $t1, Loop # jump to Loop
-                    target_address = address_locations[op[2].strip()]
-                    current_address = '{:08X}'.format(counter * 4)
-                    immediate = calculate_branch_address(target_address, current_address)
-                rt = op[0].split(' ')[1].strip()
-                rs = op[1].strip()
-                rt = REGISTERS[rt]
-                rs = REGISTERS[rs]
-                output = opcode + rt + rs + immediate
-                machine_code.append(output)
-                counter += 1
-            elif command_name == 'lw' or command_name == 'sw':
-                rt = op[0].split(' ')[1]
-                rs = op[1].split('(')[1].strip(')')
-                rt = REGISTERS[rt]
-                rs = REGISTERS[rs]
-                immediate = op[1].split('(')[0]
-                immediate = '{:016b}'.format(int(immediate))
-                output = opcode + rs + rt + immediate
-                machine_code.append(output)
-                counter += 1
-            else:
-                rs = op[1].strip()
-                rt = op[0].split(' ')[1]
-                immediate = op[2].strip()
-                rt = REGISTERS[rt]
-                rs = REGISTERS[rs]
-                if int(immediate) < 0:
-                    immediate = bin(int(immediate) & 0b1111111111111111).split('b')[1]
-                else:
+    try:
+        for line in mips_input:
+            op = line.split(',')
+            command_name = op[0].split(' ')[0].strip()
+            command = OP_CODE_TABLE[command_name]
+            opcode = command['op']
+            if command['type'] == 'I':
+                if command_name == 'beq' or command_name == 'bne':
+                    # has the form OP rs, rt, IMM
+                    try:
+                        # Constant jumps e.g. beq $t0, $t1, 3 # jump 3 instructions
+                        immediate = int(op[2])
+                        immediate = '{:016b}'.format(immediate)
+                    except:
+                        # Not a constant jump e.g. beq $t0, $t1, Loop # jump to Loop
+                        target_address = address_locations[op[2].strip()]
+                        current_address = '{:08X}'.format(counter * 4)
+                        immediate = calculate_branch_address(target_address, current_address)
+                    rt = op[0].split(' ')[1].strip()
+                    rs = op[1].strip()
+                    rt = REGISTERS[rt]
+                    rs = REGISTERS[rs]
+                    output = opcode + rt + rs + immediate
+                    machine_code.append(output)
+                    counter += 1
+                elif command_name == 'lw' or command_name == 'sw':
+                    rt = op[0].split(' ')[1]
+                    rs = op[1].split('(')[1].strip(')')
+                    rt = REGISTERS[rt]
+                    rs = REGISTERS[rs]
+                    immediate = op[1].split('(')[0]
                     immediate = '{:016b}'.format(int(immediate))
-                output = opcode + rs + rt + immediate
-                machine_code.append(output)
-                counter += 1
-        elif command['type'] == 'R':
-            function = command['Func']
-            if command_name == 'jr':
-                rs = op[0].split(' ')[1].strip()
-                rs = REGISTERS[rs]
-                shamt = '0'*15
-                output = opcode + rs + shamt + function
-                machine_code.append(output)
-                counter += 1
-            elif command_name == 'sll' or command_name == 'srl':
-                shamt = '0' * 5
-                rt = op[1].strip()
-                rd = op[0].split(' ')[1].strip()
-                sa = op[2].strip()
-                rt = REGISTERS[rt]
-                rd = REGISTERS[rd]
-                sa = '{:05b}'.format(int(sa))
-                output = opcode + shamt + rt + rd + sa + function
-                machine_code.append(output)
-                counter += 1
-            else:
-                if len(op) == 5:
-                    shamt = op[3].strip()
+                    output = opcode + rs + rt + immediate
+                    machine_code.append(output)
+                    counter += 1
                 else:
-                    shamt = '00000'
-                rs = op[1].strip()
-                rt = op[2].strip()
-                rd = op[0].split(' ')[1].strip()
-                rt = REGISTERS[rt]
-                rs = REGISTERS[rs]
-                rd = REGISTERS[rd]
-                output = opcode + rs + rt + rd + shamt + function
+                    rs = op[1].strip()
+                    rt = op[0].split(' ')[1]
+                    immediate = op[2].strip()
+                    rt = REGISTERS[rt]
+                    rs = REGISTERS[rs]
+                    if int(immediate) < 0:
+                        immediate = bin(int(immediate) & 0b1111111111111111).split('b')[1]
+                    else:
+                        immediate = '{:016b}'.format(int(immediate))
+                    output = opcode + rs + rt + immediate
+                    machine_code.append(output)
+                    counter += 1
+            elif command['type'] == 'R':
+                function = command['Func']
+                if command_name == 'jr':
+                    rs = op[0].split(' ')[1].strip()
+                    rs = REGISTERS[rs]
+                    shamt = '0'*15
+                    output = opcode + rs + shamt + function
+                    machine_code.append(output)
+                    counter += 1
+                elif command_name == 'sll' or command_name == 'srl':
+                    shamt = '0' * 5
+                    rt = op[1].strip()
+                    rd = op[0].split(' ')[1].strip()
+                    sa = op[2].strip()
+                    rt = REGISTERS[rt]
+                    rd = REGISTERS[rd]
+                    sa = '{:05b}'.format(int(sa))
+                    output = opcode + shamt + rt + rd + sa + function
+                    machine_code.append(output)
+                    counter += 1
+                else:
+                    if len(op) == 5:
+                        shamt = op[3].strip()
+                    else:
+                        shamt = '00000'
+                    rs = op[1].strip()
+                    rt = op[2].strip()
+                    rd = op[0].split(' ')[1].strip()
+                    rt = REGISTERS[rt]
+                    rs = REGISTERS[rs]
+                    rd = REGISTERS[rd]
+                    output = opcode + rs + rt + rd + shamt + function
+                    machine_code.append(output)
+                    counter += 1
+            else:
+                # J format
+                immediate = op[0].split(' ')[1]
+                target_address = address_locations[immediate]
+                immediate = calculate_jump_address(target_address)
+                output = opcode + immediate
                 machine_code.append(output)
                 counter += 1
-        else:
-            # J format
-            immediate = op[0].split(' ')[1]
-            target_address = address_locations[immediate]
-            immediate = calculate_jump_address(target_address)
-            output = opcode + immediate
-            machine_code.append(output)
-            counter += 1
-    with open(file_output, 'w') as outfile:
-        outfile.write("\n".join(machine_code))
+        with open(file_output, 'w') as outfile:
+            outfile.write("\n".join(machine_code))
+    except:
+        print(f"Error with line : {line} : Please check example format")
 
 
 if __name__ == '__main__':
