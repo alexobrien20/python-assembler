@@ -62,9 +62,12 @@ REGISTERS = {
 }
 
 def format_input(file_path):
-    f = open(file_path, 'r')
-    file_input = f.readlines()
-    f.close()
+    try:
+        f = open(file_path, 'r')
+        file_input = f.readlines()
+        f.close()
+    except Exception as e:
+        print(f"Error : {e}")
     formatted_lines = []
     address_locations = {}
     counter = 0
