@@ -1,6 +1,6 @@
 
 # Python Mips to Binary Converter
-Converts a text file of mips instructions to binary.
+Converts a text file of mips instructions to binary and outputs the result in a text file.
 # Usage
 ```sh
 >>> python-assembler.py --input path_to_mips_text_file.txt --output output_file_name.txt
