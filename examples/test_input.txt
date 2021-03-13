@@ -1,0 +1,23 @@
+START:
+add $t0, $t1, $s3
+addi $t0, $s2, 20
+addiu $t1, $s2, 100
+addu $t1, $s1, $s3
+and $t1, $s2, $s3
+andi $t1, $s2, 100
+LOOP:
+beq $s1, $s2, START
+bne $t1, $t2, START
+bne $t1, $t2, LOO
+j START
+jal LOOP
+jr $ra
+lw $s3, 12($t0)
+LOO:
+nor $t0, $s1, $s2
+or $t0, $s1, $s2
+sll $t1, $s3, 4
+slt $t2, $t1, $t3
+srl $t1, $s3, 2
+sub $t0, $t1, $s3
+sw $t1, 16($t0)
